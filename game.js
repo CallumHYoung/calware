@@ -1,14 +1,18 @@
 // Minimal top-down game demonstrating two things at once:
 //   1. The Portal Protocol (mandatory for the jam)
-//   2. Optional realtime multiplayer via Trystero — pure P2P, no backend,
-//      no accounts, no keys. If two tabs load this page anywhere in the
-//      world they'll see each other as circles in the same demo room.
+//   2. Optional realtime multiplayer via Trystero (Nostr strategy).
+//      No backend, no accounts, no API keys — just browser-to-browser
+//      WebRTC using public Nostr relays as signaling.
 //
-// Rip everything out and replace with your own game — just keep the
-// Portal.* calls. Multiplayer is optional per SPEC.md; delete the
-// Trystero block entirely if you don't want it.
+// The game renders and plays solo *immediately*. Multiplayer connects
+// in the background; if it fails (CDN blocked, every relay down,
+// restrictive network) the HUD flips to "multiplayer offline" and the
+// game keeps running. Rip everything out and replace with your own
+// game — just keep the Portal.* calls.
 
-import { joinRoom } from 'https://esm.run/trystero@0.20.0/torrent';
+// ------------------------------------------------------------------
+// Portal protocol + core game setup
+// ------------------------------------------------------------------
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -54,28 +58,29 @@ if (incoming.fromPortal && returnPortal) {
 }
 
 // ------------------------------------------------------------------
-// Multiplayer via Trystero (pure P2P, no backend, no keys)
+// Multiplayer via Trystero (optional, non-blocking)
 // ------------------------------------------------------------------
-// Every tab that loads this page joins the same demo room and broadcasts
-// position at ~15 Hz. Peer state is interpolated locally for smoothness.
-// To make a *private* room per game, change the second arg to joinRoom
-// to something unique (or derive it from a hash, URL, etc).
+// To delete multiplayer entirely: remove everything between the dashed
+// lines above and below this block, plus the <div id="peers"> in
+// index.html. The game loop below doesn't depend on any of it.
 
 const peers = new Map();
 const peerCountEl = document.getElementById('peers');
+let sendState = null;
+let room = null;
+
+function setPeerStatus(text, isError = false) {
+  if (!peerCountEl) return;
+  peerCountEl.textContent = text;
+  peerCountEl.style.color = isError ? '#ff6b6b' : '';
+}
 
 function refreshPeerCount() {
-  if (peerCountEl) peerCountEl.textContent = `${peers.size + 1} online`;
+  setPeerStatus(`${peers.size + 1} online`);
 }
-refreshPeerCount();
-
-const room = joinRoom(
-  { appId: 'ordinary-game-jam-starter' },
-  'demo-room'
-);
-const [sendState, getState] = room.makeAction('state');
 
 function broadcastSelf() {
+  if (!sendState) return;
   sendState({
     x: player.x,
     y: player.y,
@@ -84,29 +89,87 @@ function broadcastSelf() {
   });
 }
 
-room.onPeerJoin(id => {
-  peers.set(id, null);
-  broadcastSelf();
-  refreshPeerCount();
-});
+async function loadTrystero() {
+  // Try multiple CDN paths in order so a single CDN hiccup doesn't
+  // kill multiplayer. trystero >= 0.23 defaults to the Nostr strategy
+  // which has hundreds of public relays and is the most reliable
+  // option for zero-config P2P.
+  const urls = [
+    'https://esm.run/trystero@0.23',
+    'https://cdn.jsdelivr.net/npm/trystero@0.23/+esm',
+    'https://esm.sh/trystero@0.23',
+  ];
+  let lastErr;
+  for (const url of urls) {
+    try {
+      const mod = await import(url);
+      if (mod && typeof mod.joinRoom === 'function') {
+        console.log('[jam] loaded trystero from', url);
+        return mod;
+      }
+      lastErr = new Error(`module from ${url} has no joinRoom export`);
+    } catch (err) {
+      console.warn('[jam] cdn failed:', url, err.message);
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('could not load trystero');
+}
 
-room.onPeerLeave(id => {
-  peers.delete(id);
-  refreshPeerCount();
-});
+async function setupMultiplayer() {
+  try {
+    setPeerStatus('connecting…');
+    const { joinRoom } = await loadTrystero();
 
-getState((data, peerId) => {
-  const existing = peers.get(peerId);
-  peers.set(peerId, {
-    ...data,
-    renderX: existing?.renderX ?? data.x,
-    renderY: existing?.renderY ?? data.y,
-  });
-});
+    room = joinRoom(
+      { appId: 'ordinary-game-jam-starter' },
+      'demo-room'
+    );
+    const [send, getState] = room.makeAction('state');
+    sendState = send;
+
+    room.onPeerJoin(id => {
+      console.log('[jam] peer joined:', id);
+      peers.set(id, null);
+      broadcastSelf();
+      refreshPeerCount();
+    });
+
+    room.onPeerLeave(id => {
+      console.log('[jam] peer left:', id);
+      peers.delete(id);
+      refreshPeerCount();
+    });
+
+    getState((data, peerId) => {
+      const existing = peers.get(peerId);
+      peers.set(peerId, {
+        ...data,
+        renderX: existing?.renderX ?? data.x,
+        renderY: existing?.renderY ?? data.y,
+      });
+    });
+
+    refreshPeerCount();
+    broadcastSelf();
+    console.log('[jam] multiplayer ready (nostr)');
+  } catch (err) {
+    console.error('[jam] multiplayer setup failed:', err);
+    setPeerStatus('multiplayer offline', true);
+  }
+}
+
+setPeerStatus('connecting…');
+setupMultiplayer();
 
 addEventListener('beforeunload', () => {
-  try { room.leave(); } catch {}
+  if (room) {
+    try { room.leave(); } catch {}
+  }
 });
+
+// ------------------------------------------------------------------
+// Game loop (runs regardless of multiplayer state)
 // ------------------------------------------------------------------
 
 const stars = Array.from({ length: 80 }, () => ({
