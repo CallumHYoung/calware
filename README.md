@@ -1,148 +1,122 @@
-# Ordinary Game Jam #1 — Starter Template
+# CalWare — 3D Microgame Brawler
 
-**Click the green "Use this template" button at the top of this repo** to create your own game repository from this starter. (Don't fork — template creates a clean, independent repo with a working Pages deploy and the portal protocol already wired up.)
+Fork of the Ordinary Game Jam starter. A browser-only, P2P multiplayer
+3D microgame battler in the WarioWare tradition: short reflex games, one
+after another, last player with lives wins.
 
-Showcase & spec: https://github.com/CallumHYoung/gamejam
-
----
-
-## What you get out of the box
-
-- A minimal working game (`index.html` + `game.js`) — moving circle, exit portal, incoming-portal spawn logic, auto-picks a destination from the live jam registry.
-- **Realtime multiplayer** via [Trystero](https://github.com/dmotz/trystero). Pure P2P over BitTorrent trackers — no backend, no accounts, no keys. Open two tabs and you'll see each other as circles in the same demo room. Works from the internet, not just localhost.
-- `portal.js` — the Portal Protocol helper library. ~80 lines, no dependencies. This is the only hard requirement of the jam.
-- `.github/workflows/pages.yml` — a GitHub Actions workflow that deploys your game to GitHub Pages on every push to `main`.
-- Purple vibes to match the jam's theme.
-
-Try the starter as-is: after you create your repo and enable Pages, the starter game will already portal to other jam games *and* show other players that are currently in the demo room.
-
-**Multiplayer is optional per the jam spec.** If you don't want it, delete the `Trystero` block in `game.js` (clearly commented) and the `#peers` element in `index.html`. Your game will drop back to solo and the portal protocol still works.
-
----
-
-## Quick start
-
-### 1. Create your game repo
-
-Click **"Use this template" → "Create a new repository"** at the top of this page. Name it whatever you want (e.g. `rocket-racer`). Make it public.
-
-### 2. Clone it
-
-```bash
-git clone https://github.com/<your-username>/<your-game>.git
-cd <your-game>
-```
-
-### 3. Run it locally
-
-Any static file server works:
+## Run
 
 ```bash
 python -m http.server 8000
-# then open http://localhost:8000
+# open http://localhost:8000
 ```
 
-Walk into the purple portal. It'll redirect you to a random game from the live jam registry.
+Open in two tabs to test multiplayer. Walk into the cyan ring in the
+lobby to queue, or press **Play solo** to try it alone.
 
-### 4. Build your game
+## How it's wired
 
-Replace `game.js` (and `index.html` / `style.css` as needed) with your actual game. **Keep `portal.js` and the calls to `Portal.*`** — those are the jam's contract.
+- **Lobby room** (`calware-lobby-v1`, via Trystero) holds all connected
+  players. Carries presence, queue state, and match-start announcements.
+- **Match rooms** (`calware-match-<id>`) are created per match. Only the
+  invited players join, so new loads landing in the lobby can never
+  interrupt an in-progress match.
+- **Host model**: lowest peer id in a room is host. Host picks
+  microgames + seeds; all peers run the same seeded simulation locally
+  and report their own win/loss.
+- **Solo mode** uses the same match controller with a null network — so
+  the microgame interface is identical online and offline.
 
-Feed the full build spec into your coding agent for the rules: https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md
+## Files
 
-### 5. Deploy
-
-Push to `main`:
-
-```bash
-git add .
-git commit -m "Build my game"
-git push
+```
+index.html         shell + importmap for three
+style.css
+portal.js          Ordinary Game Jam portal protocol (unchanged)
+main.js            entry — wires lobby <-> match
+net.js             LobbyNet + MatchNet (Trystero)
+three-setup.js     shared renderer, loop, studio rig
+lobby.js           3D lobby scene + queue/portal zones
+match.js           match director (rounds, lives, tally, finish)
+microgames/
+  index.js         registry
+  _ghosts.js       helper: translucent opponent avatars from pos broadcasts
+  dodge.js         WASD, survive falling spheres                  (+ ghosts)
+  punch.js         mouse aim + click a moving target
+  jump.js          SPACE to jump walls
+  collect.js       WASD, gather every orb                         (+ ghosts)
+  stack.js         SPACE to drop each sliding block onto the last
+  swat.js          mouse, click every flying bug
+  race.js          SHARED scene — sprint to the finish, first wins
+  thumbnails/      drop 320x180 (or square) PNGs here per key
 ```
 
-Then on GitHub:
+## Multiplayer modes
 
-1. Go to **Settings → Pages** on your repo
-2. **Source**: GitHub Actions
-3. Watch the workflow run in the **Actions** tab (~1 minute)
+Microgames come in two flavors:
 
-Your game is live at:
-```
-https://<your-username>.github.io/<your-game>/
-```
+- **Instanced (default)** — each player runs their own copy with the
+  same seed. Ghosts of other players are shown as translucent avatars
+  based on their broadcast `{ x, z }` state. You play independently but
+  see where the others are.
+- **Shared scene** — every player is in the same 3D world (`race.js`).
+  Lane assignment is deterministic (sorted peer-ids), each peer drives
+  their own avatar, and the ghost channel carries custom state like
+  `finished: true` to coordinate wins/losses.
 
-### 6. Submit to the jam
+The director broadcasts `microgame.getGhostState()` at 10 Hz through
+the MatchNet `pos` channel, and delivers incoming data to
+`microgame.setGhostState(peerId, state)`. Both are optional — if you
+don't implement them, your microgame stays pure-instanced with no
+ghosts. See `_ghosts.js` for the reusable rig used by the built-in
+multiplayer microgames.
 
-Open https://github.com/CallumHYoung/gamejam/blob/main/jam1.json, click the pencil icon (GitHub will auto-fork for you), and add your entry to the `games` array:
+Between each round the director shows a "Up Next" screen with the
+microgame's title, one-line rules, controls, optional thumbnail, and a
+3-2-1-GO countdown. Durations scale with round difficulty so late-match
+rounds feel tighter.
 
-```json
-{
-  "id": "rocket-racer",
-  "title": "Rocket Racer",
-  "author": "Your Name",
-  "description": "One-line pitch.",
-  "url": "https://your-username.github.io/rocket-racer/",
-  "repo": "your-username/rocket-racer",
-  "thumbnail": "thumbnails/rocket-racer.png",
-  "type": "3d",
-  "tags": ["platformer", "three.js"],
-  "status": "wip"
-}
-```
+## Adding a microgame
 
-Commit to a new branch and open a PR. That's it — once merged, your game appears on the showcase with live deploy status pulled from your repo.
-
-Full walkthrough: https://github.com/CallumHYoung/gamejam/blob/main/GETTING_STARTED.md
-
----
-
-## The Portal Protocol in 30 seconds
-
-Every jam game reads the same URL params on load and redirects out the same way. That's how players travel between games without any backend.
-
-**Incoming** — when your game loads, `Portal.readPortalParams()` returns:
+1. Create `microgames/<name>.js` with a default export:
 
 ```js
-const { fromPortal, username, color, speed, ref } = Portal.readPortalParams();
+export default {
+  key: 'myname',
+  title: 'DO THE THING!',                       // flashed on preround + HUD
+  description: 'Explain what to do in one line.',
+  controls: 'Mouse — click',                    // optional hint chip
+  thumbnail: 'microgames/thumbnails/myname.png',// optional; missing is fine
+  baseDuration: 5.0,
+  mount(ctx) {
+    // ctx = {
+    //   THREE, seed, difficulty, duration,
+    //   onWin, onLose,
+    //   keys, mouse,
+    //   me: { id, name, color },         // multiplayer-aware games
+    //   otherPlayers: [{ id, name, color }, ...],
+    //   playerColor, playerName,          // convenience aliases
+    // }
+    return {
+      scene, camera, update(dt), dispose(),
+      getGhostState() { return { x, z, ...anything } },   // optional — broadcast at 10 Hz
+      setGhostState(peerId, state) { /* apply incoming */ }, // optional — route from director
+    };
+  },
+};
 ```
 
-If `fromPortal` is true, the player arrived from another game — skip your menu and spawn them in. If `ref` is set, also draw a return portal pointing back to `ref`.
+2. Register it in `microgames/index.js`.
 
-**Outgoing** — when the player enters your exit portal:
+The round seed is host-broadcast, so every peer running the same
+microgame sees identical procedural content. Use the seed to parametrize
+your RNG.
 
-```js
-const target = await Portal.pickPortalTarget();   // random game from the live registry
-Portal.sendPlayerThroughPortal(target.url, {
-  username, color, speed,
-});
-```
+## Portal protocol
 
-That's the whole protocol. Full details in [SPEC.md](https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md).
+Walk into the purple portal in the lobby to jump to another jam game
+(pulled live from the jam registry). Incoming portal params are
+respected — if another game sent you here with a username/color, we use
+them.
 
----
-
-## 3D vs 2D
-
-- **2D:** a door, tile, button, or menu item — anything a player can interact with.
-- **3D:** a visible object in the world (ring, archway, door) with a collision check against the player.
-
-The starter is 2D canvas. If you're building 3D (Three.js / Babylon / PlayCanvas), you can still import `portal.js` and call `Portal.sendPlayerThroughPortal` / `Portal.readPortalParams` — the protocol is framework-agnostic.
-
----
-
-## Multiplayer (optional)
-
-Static hosting is compatible with realtime multiplayer through browser-to-service libraries. Don't add multiplayer until your portal loop works. Recommended: [PlayroomKit](https://joinplayroom.com/). Full options in [SPEC.md § Multiplayer](https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md#multiplayer-optional).
-
----
-
-## Stack freedom
-
-Use whatever you want — Three.js, Phaser, Pixi, Babylon, PlayCanvas, raw canvas, raw WebGL, p5.js, HTML + CSS. The only constraints:
-
-- **Browser-only.** No backend. Static hosting must be enough.
-- **Join the network.** Drop in `portal.js` (or implement the handful of URL-param behaviors yourself — it's ~15 lines if you want to inline it). A game that doesn't portal isn't in the jam.
-- **Build in public.** Your game repo must be public from the first commit — watching each other's games take shape is half the fun.
-- **One entry point.** `index.html` at the root.
-
-Have fun.
+Spec: https://github.com/CallumHYoung/gamejam/blob/main/SPEC.md

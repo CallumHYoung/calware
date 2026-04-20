@@ -3,17 +3,98 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>My Ordinary Game Jam Game</title>
+<title>CalWare — 3D Microgames</title>
 <link rel="stylesheet" href="style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.160.0",
+    "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 </head>
 <body>
+
+<div id="stage"></div>
+
 <div id="hud">
   <div id="username">loading…</div>
   <div id="peers">1 online</div>
-  <div id="hint">WASD / arrows to move — walk into a portal to travel</div>
+  <div id="state-tag">lobby</div>
 </div>
-<canvas id="game" width="960" height="540"></canvas>
+
+<!-- Lobby overlay -->
+<div id="lobby-ui" class="panel">
+  <div class="panel-inner">
+    <h1>CALWARE</h1>
+    <p class="tagline">3D microgames. 4 lives. Last one standing wins.</p>
+    <div class="section">
+      <div class="section-label">In lobby</div>
+      <div id="player-list"></div>
+    </div>
+    <div class="section">
+      <div class="section-label">Queue</div>
+      <div id="queue-list"></div>
+    </div>
+    <div class="buttons">
+      <button id="queue-btn">Queue up</button>
+      <button id="solo-btn" class="secondary">Play solo</button>
+    </div>
+    <div id="queue-status"></div>
+    <div class="hint">WASD to move • walk into the purple portal to jump to another jam game</div>
+  </div>
+</div>
+
+<!-- Lobby countdown — synchronized match-start countdown visible to
+     every peer before transition into match -->
+<div id="lobby-countdown" class="panel hidden">
+  <div class="panel-inner">
+    <div id="lobby-countdown-label">Match starting</div>
+    <div id="lobby-countdown-number">3</div>
+    <div id="lobby-countdown-status"></div>
+    <div id="lobby-countdown-players"></div>
+  </div>
+</div>
+
+<!-- Pre-round overlay (shown for a few seconds before each microgame) -->
+<div id="preround-ui" class="panel hidden">
+  <div class="panel-inner">
+    <div id="preround-thumbnail" class="preround-thumbnail hidden">
+      <img id="preround-img" alt="" />
+    </div>
+    <div id="preround-round" class="preround-round">Round 1</div>
+    <h2 id="preround-title">…</h2>
+    <p id="preround-description">…</p>
+    <div id="preround-controls" class="preround-controls"></div>
+    <div id="preround-countdown">3</div>
+  </div>
+</div>
+
+<!-- Match overlay (HUD while a microgame runs) -->
+<div id="match-ui" class="panel hidden">
+  <div id="instruction"></div>
+  <div id="timer-bar"><div id="timer-fill"></div></div>
+  <div id="lives-row"></div>
+  <div id="round-counter"></div>
+  <div id="peer-status"></div>
+  <div id="wait-banner" class="hidden">
+    <span id="wait-mark">✓</span>
+    <span id="wait-text">COMPLETE</span>
+    <span id="wait-progress"></span>
+  </div>
+</div>
+
+<!-- Result / between-rounds overlay -->
+<div id="result-ui" class="panel hidden">
+  <div class="panel-inner">
+    <h2 id="result-text"></h2>
+    <div id="result-detail"></div>
+    <button id="return-lobby" class="hidden">Back to lobby</button>
+  </div>
+</div>
+
 <script src="portal.js"></script>
-<script type="module" src="game.js"></script>
+<script type="module" src="main.js"></script>
 </body>
 </html>
