@@ -12,6 +12,7 @@
 import { THREE, setActive, registerUpdater } from './three-setup.js';
 import { microgames, microgameKeys } from './microgames/index.js';
 import { mulberry32 } from './net.js';
+import { sfx } from './sound.js';
 
 const ROUND_TIMEOUT_PAD = 1.5;   // seconds after duration before forcing a result
 const BETWEEN_ROUNDS_MS = 200;
@@ -218,13 +219,18 @@ export class MatchController {
     // 3 → 2 → 1 → GO! → mount
     this._clearPreRoundTicks();
     this._preRoundTicks = [];
+    // Initial "3" gets an audible tick too (the number is already on screen
+    // before the first setTimeout fires).
+    sfx.tick();
     const tick = (remaining) => {
       if (remaining > 0) {
         countdownEl.textContent = String(remaining);
+        sfx.tick();
         this._preRoundTicks.push(setTimeout(() => tick(remaining - 1), PREROUND_STEP_MS));
       } else {
         countdownEl.textContent = 'GO!';
         countdownEl.classList.add('go');
+        sfx.go();
         this._preRoundTicks.push(setTimeout(() => {
           ui.classList.add('hidden');
           this._mountAndStart(data);
@@ -490,7 +496,19 @@ export class MatchController {
   }
 
   _onTally(data) {
+    const myId = this.app.me.id;
+    const prevLives = this.lives.get(myId) ?? 0;
     for (const [pid, l] of Object.entries(data.lives)) this.lives.set(pid, l);
+    const newLives = this.lives.get(myId) ?? 0;
+
+    // Only play life-change SFX if I was alive going into the round —
+    // an already-eliminated player doesn't need a fresh "you're safe"
+    // chime every round.
+    if (prevLives > 0) {
+      if (newLives < prevLives) sfx.lifeLost();
+      else                      sfx.lifeSafe();
+    }
+
     this._disposeMicrogame();
     this._renderLives();
     this._flashResult();
@@ -518,11 +536,15 @@ export class MatchController {
     document.getElementById('state-tag').textContent = 'lobby';
     if (this._timerRaf) cancelAnimationFrame(this._timerRaf);
 
+    const iWon = data.winner === this.app.me.id;
+    if (iWon) sfx.matchWin();
+    else      sfx.matchLose();
+
     this._resolve?.({
       winner: data.winner,
       reason: data.reason,
       lives: Object.fromEntries(this.lives),
-      iWon: data.winner === this.app.me.id,
+      iWon,
     });
     this._resolve = null;
   }

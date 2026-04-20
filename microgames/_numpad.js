@@ -121,16 +121,30 @@ export function makeNumpad(scene, opts = {}) {
     return g;
   }
 
-  // Digits 1-9 in a standard numpad grid (7 8 9 on top)
+  // Digits 1-9 in a standard numpad grid (7 8 9 on top). Laid out
+  // *upward* from the group origin so callers can place the pad at
+  // ground level without the bottom rows clipping into the floor.
+  //
+  //   y = 3*cellW → 7 8 9
+  //   y = 2*cellW → 4 5 6
+  //   y = 1*cellW → 1 2 3
+  //   y = 0       → 0 ✓   (bottom row, when included)
+  //
+  // If neither 0 nor ✓ is included we collapse the layout so the 1-2-3
+  // row sits at y=0 — otherwise the pad floats awkwardly with empty
+  // space under it.
+  const hasBottomRow = includeZero || includeSubmit;
+  const rowShift = hasBottomRow ? 0 : -cellW;
   const rows = [
     ['7', '8', '9'],
     ['4', '5', '6'],
     ['1', '2', '3'],
   ];
   rows.forEach((row, rIdx) => {
+    const y = (rows.length - rIdx) * cellW + rowShift;
     row.forEach((digit, cIdx) => {
       const b = makeButton(digit);
-      b.position.set((cIdx - 1) * cellW, -rIdx * cellW, 0);
+      b.position.set((cIdx - 1) * cellW, y, 0);
       b.userData.digit = digit;
       group.add(b);
       buttonGroups.push(b);
@@ -139,7 +153,7 @@ export function makeNumpad(scene, opts = {}) {
 
   if (includeZero) {
     const z = makeButton('0');
-    z.position.set(0, -3 * cellW, 0);
+    z.position.set(0, 0, 0);
     z.userData.digit = '0';
     group.add(z);
     buttonGroups.push(z);
@@ -147,7 +161,7 @@ export function makeNumpad(scene, opts = {}) {
 
   if (includeSubmit) {
     const s = makeButton('✓', { color: submitColor, textColor: '#0a0514' });
-    s.position.set(cellW, -3 * cellW, 0);
+    s.position.set(cellW, 0, 0);
     s.userData.digit = 'submit';
     group.add(s);
     buttonGroups.push(s);

@@ -9,6 +9,7 @@
 import {
   THREE, makeStudio, setActive, registerUpdater,
 } from './three-setup.js';
+import { sfx } from './sound.js';
 
 export function createLobby(app, lobbyNet) {
   const scene = new THREE.Scene();
@@ -179,12 +180,21 @@ export function createLobby(app, lobbyNet) {
 
   const onCountdown = (e) => {
     const { startAt, players, amIn } = e.detail;
+    // The ticker polls at 100ms so the displayed number updates smoothly,
+    // but sound effects should only fire at whole-second transitions.
+    let lastSecond = -1;
     const tick = () => {
       const remaining = Math.max(0, startAt - Date.now());
       const s = Math.ceil(remaining / 1000);
       if (remaining <= 0) {
+        if (lastSecond !== 0) sfx.go();
+        lastSecond = 0;
         hideCountdown();
         return;
+      }
+      if (s !== lastSecond) {
+        sfx.tick();
+        lastSecond = s;
       }
       countdownNumEl.textContent = s;
       countdownStatusEl.textContent = amIn

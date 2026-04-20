@@ -20,8 +20,8 @@ export default {
     makeStudio(scene, { skyColor: 0x0f1b3a, groundColor: 0x0a1028 });
 
     const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-    camera.position.set(0, 2.2, 6.5);
-    camera.lookAt(0, 1.2, 0);
+    camera.position.set(0, 3, 7);
+    camera.lookAt(0, 2, 0);
 
     // RNG derived from the round seed so every peer sees the same problem.
     let r = (seed >>> 0) || 1;
@@ -39,7 +39,7 @@ export default {
       color: '#ffd15c',
       font: 'bold 140px ui-sans-serif, system-ui, sans-serif',
     });
-    eqLabel.position.set(0, 3.6, 0);
+    eqLabel.position.set(0, 4.5, 0);
     scene.add(eqLabel);
 
     // Current answer display just below the equation
@@ -48,7 +48,7 @@ export default {
       color: '#4ff0ff',
       font: 'bold 110px ui-sans-serif, system-ui, sans-serif',
     });
-    answerLabel.position.set(0, 2.3, 0);
+    answerLabel.position.set(0, 3.7, 0);
     scene.add(answerLabel);
 
     const pad = makeNumpad(scene, {
@@ -77,9 +77,12 @@ export default {
         }
       },
     });
-    // Tilt numpad slightly so it faces the camera nicely.
-    pad.group.rotation.x = -0.25;
-    pad.group.position.set(0, 1.15, 0.5);
+    // Tilt numpad slightly so it faces the camera nicely. Positioned
+    // low so all four rows (789 / 456 / 123 / 0✓) are visible above
+    // the floor — the previous layout hid the 1-2-3 row under the
+    // ground plane.
+    pad.group.rotation.x = -0.2;
+    pad.group.position.set(0, 0.55, 0.5);
 
     let typed = '';
     let elapsed = 0;

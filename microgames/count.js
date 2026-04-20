@@ -19,8 +19,8 @@ export default {
     makeStudio(scene, { skyColor: 0x111a2e, groundColor: 0x0a101e });
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
-    camera.position.set(0, 3, 8);
-    camera.lookAt(0, 1.5, 0);
+    camera.position.set(0, 3.2, 8);
+    camera.lookAt(0, 2.2, 0);
 
     let r = (seed >>> 0) || 1;
     const rand = () => { r = (Math.imul(r, 1664525) + 1013904223) >>> 0; return r / 0xffffffff; };
@@ -34,7 +34,7 @@ export default {
       color: '#ffd15c',
       font: 'bold 120px ui-sans-serif, system-ui, sans-serif',
     });
-    prompt.position.set(0, 4.2, 0);
+    prompt.position.set(0, 4.7, 0);
     scene.add(prompt);
 
     // Scatter spheres in a zone above the pad
@@ -48,7 +48,7 @@ export default {
       const radius = 1.5 + rand() * 0.8;
       m.position.set(
         Math.cos(angle) * radius,
-        2.7 + (rand() - 0.5) * 0.9,
+        3.5 + (rand() - 0.5) * 0.9,
         Math.sin(angle) * 0.8,
       );
       m.castShadow = true;
