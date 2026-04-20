@@ -16,6 +16,19 @@ Expected filenames (one per registered microgame):
 - `count.png`
 - `statue.png`
 - `mash.png`
+- `spot.png`
+- `which.png`
+- `zoom.png`
+- `deflect.png`
+- `echo.png`
+- `opposite.png`
+- `trace.png`
+- `drum.png`
+- `maze.png`
+- `buzzer.png`
+- `king.png`
+- `tag.png`
+- `sumo.png`
 
 Missing images are handled gracefully — the preround screen just hides
 the thumbnail slot for that microgame.

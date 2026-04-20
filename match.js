@@ -128,14 +128,26 @@ export class MatchController {
   // count. Because every peer shares the same seeded RNG and the same
   // play-count history, all peers still converge on the same choice
   // deterministically without needing to broadcast the pick.
+  //
+  // In solo matches (this.net === null) we also filter out microgames
+  // that explicitly opt out via soloFriendly: false — e.g., TAG would
+  // auto-lose alone, SUMO is trivial without opponents.
   _pickNextGame() {
     if (!this._playCounts) this._playCounts = new Map();
+    const isSolo = !this.net;
+
+    const eligible = microgameKeys.filter(k => {
+      if (isSolo && microgames[k].soloFriendly === false) return false;
+      return true;
+    });
+    const pool = eligible.length > 0 ? eligible : microgameKeys;
+
     let minCount = Infinity;
-    for (const k of microgameKeys) {
+    for (const k of pool) {
       const c = this._playCounts.get(k) || 0;
       if (c < minCount) minCount = c;
     }
-    const candidates = microgameKeys.filter(k => (this._playCounts.get(k) || 0) === minCount);
+    const candidates = pool.filter(k => (this._playCounts.get(k) || 0) === minCount);
     const pick = candidates[Math.floor(this.rng() * candidates.length)];
     this._playCounts.set(pick, (this._playCounts.get(pick) || 0) + 1);
     return pick;
