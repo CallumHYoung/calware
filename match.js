@@ -14,7 +14,7 @@ import { microgames, microgameKeys } from './microgames/index.js';
 import { mulberry32 } from './net.js';
 
 const ROUND_TIMEOUT_PAD = 1.5;   // seconds after duration before forcing a result
-const BETWEEN_ROUNDS_MS = 1200;
+const BETWEEN_ROUNDS_MS = 200;
 const PREROUND_STEP_MS = 800;    // countdown tick length (3 ticks → ~2.4s reading time)
 const PREROUND_GO_MS = 350;      // "GO!" flash before the microgame actually starts
 
@@ -101,7 +101,7 @@ export class MatchController {
     this.roundIdx++;
     if (!this.isHost()) return;    // non-host waits for 'round' event
 
-    const gameKey = microgameKeys[Math.floor(this.rng() * microgameKeys.length)];
+    const gameKey = this._pickNextGame();
     const seed = Math.floor(this.rng() * 0x7fffffff);
     const difficulty = Math.min(1.5, (this.roundIdx - 1) * 0.12);
     const base = microgames[gameKey].baseDuration;
@@ -120,6 +120,24 @@ export class MatchController {
         this._onRound(payload);
       }
     }, delay);
+  }
+
+  // Favor microgames that haven't been played yet this match. Picks
+  // uniformly from whichever games share the current minimum play
+  // count. Because every peer shares the same seeded RNG and the same
+  // play-count history, all peers still converge on the same choice
+  // deterministically without needing to broadcast the pick.
+  _pickNextGame() {
+    if (!this._playCounts) this._playCounts = new Map();
+    let minCount = Infinity;
+    for (const k of microgameKeys) {
+      const c = this._playCounts.get(k) || 0;
+      if (c < minCount) minCount = c;
+    }
+    const candidates = microgameKeys.filter(k => (this._playCounts.get(k) || 0) === minCount);
+    const pick = candidates[Math.floor(this.rng() * candidates.length)];
+    this._playCounts.set(pick, (this._playCounts.get(pick) || 0) + 1);
+    return pick;
   }
 
   // Idempotent — if a retransmitted round announce arrives while we're

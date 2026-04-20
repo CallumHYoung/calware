@@ -26,6 +26,10 @@ import collect from './collect.js';
 import stack   from './stack.js';
 import swat    from './swat.js';
 import race    from './race.js';
+import math    from './math.js';
+import count   from './count.js';
+import statue  from './statue.js';
+import mash    from './mash.js';
 
-export const microgames = { dodge, punch, jump, collect, stack, swat, race };
+export const microgames = { dodge, punch, jump, collect, stack, swat, race, math, count, statue, mash };
 export const microgameKeys = Object.keys(microgames);

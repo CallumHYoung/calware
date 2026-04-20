@@ -12,6 +12,10 @@ Expected filenames (one per registered microgame):
 - `stack.png`
 - `swat.png`
 - `race.png`
+- `math.png`
+- `count.png`
+- `statue.png`
+- `mash.png`
 
 Missing images are handled gracefully — the preround screen just hides
 the thumbnail slot for that microgame.
